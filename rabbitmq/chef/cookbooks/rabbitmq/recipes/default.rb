@@ -158,6 +158,7 @@ else
 end
 
 if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing_erlang_key)
+  # Retrieve rabbitmq hostnames
   # get ip addresses - Barclamp proposal needs to be coded and not hard coded
    service_name = node[:rabbitmq][:config][:environment]
    proposal_name = service_name.split('-')
@@ -175,7 +176,8 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
    cluster_nodes << "rabbit@"+rmcont3hostname[0]
    node.default['rabbitmq']['cluster_disk_nodes'] = cluster_nodes
   #End of cluster cluster address config
-
+   
+   # Deploy rabbit.config file
    template "#{node['rabbitmq']['config_root']}/rabbitmq.config" do
      source 'rabbitmq.config.erb'
      owner 'root'
@@ -189,6 +191,7 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
     notifies :stop, "service[#{node['rabbitmq']['service_name']}]", :immediately
   end
 
+  # Deploy erlang cookie
   template node['rabbitmq']['erlang_cookie_path'] do
     source 'doterlang.cookie.erb'
     owner 'rabbitmq'
@@ -197,21 +200,18 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
     notifies :start, "service[#{node['rabbitmq']['service_name']}]", :immediately
     notifies :run, "execute[reset-node]", :immediately
   end
-   
+   # Erlang cookie had been deployed to current node --> Set it to 1 
    node.set['rabbit']['node_set_cookie'] = 1
-   nove.save
-   log "=== rabbit current node set cookie #{node['rabbit']['node_set_cookie']}"
+   node.save
    # Retrieves Rabbit cluster nodes
    rabbitmq_cluster = search(:node, "roles:rabbitmq") || []
    rabbitmq_cluster.each do |rabbit_node|
-     log "=== rabbit node set cookie : #{rabbit_node['rabbit']['node_set_cookie']} "
      while rabbit_node['rabbit']['node_set_cookie'] != 1 
+       # Sleep for 10 seconds as cookies are different across nodes
        sleep 10 
-       log "========== Sleep for 10 seconds as cookies are different across nodes #{rabbit_node['rabbit']['node_set_cookie']}"
      end
-    log "=== rabbit node set cookie after 10 seconds : #{rabbit_node['rabbit']['node_set_cookie']} "
    end
-   log "======== We can reset nodes as cookies are the same"
+   # We can proceed to a reset as cookies are deployed accross all nodes 
   # Need to reset for clustering #
   execute "reset-node" do
     command "rabbitmqctl stop_app && rabbitmqctl reset && rabbitmqctl stop && setsid /etc/init.d/rabbitmq-server start"
