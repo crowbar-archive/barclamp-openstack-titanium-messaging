@@ -176,7 +176,7 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
    cluster_nodes << "rabbit@"+rmcont3hostname[0]
    node.default['rabbitmq']['cluster_disk_nodes'] = cluster_nodes
   #End of cluster cluster address config
-   
+  log "====== End retrieve rabbitmq hostnames ==================" 
    # Deploy rabbit.config file
    template "#{node['rabbitmq']['config_root']}/rabbitmq.config" do
      source 'rabbitmq.config.erb'
@@ -185,12 +185,12 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
      mode 00644
      notifies :restart, "service[#{node['rabbitmq']['service_name']}]"
    end
-
+   log "====== End deploy rabbit.configi ================"
   log "stopping service[#{node['rabbitmq']['service_name']}] to change erlang_cookie" do
     level :info
     notifies :stop, "service[#{node['rabbitmq']['service_name']}]", :immediately
   end
-
+  log "====== End stopping rabbitmq service ==================="
   # Deploy erlang cookie
   template node['rabbitmq']['erlang_cookie_path'] do
     source 'doterlang.cookie.erb'
@@ -200,8 +200,10 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
     notifies :start, "service[#{node['rabbitmq']['service_name']}]", :immediately
     notifies :run, "execute[reset-node]", :immediately
   end
+   log "====== End deploying erlang cookie======================================"
    # Erlang cookie has been deployed to current node --> Set attribute to 1 
    node.set['rabbit']['node_set_cookie'] = 1
+   log "====== NODE.SAVE =============="
    node.save
    log "=========== erlang cookie has been set to 1 on node : #{node['ipaddress']} : #{node['rabbit']['node_set_cookie']}"
    # Retrieves Rabbit cluster nodes
