@@ -200,13 +200,14 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
     notifies :start, "service[#{node['rabbitmq']['service_name']}]", :immediately
     notifies :run, "execute[reset-node]", :immediately
   end
-   # Erlang cookie had been deployed to current node --> Set it to 1 
+   # Erlang cookie has been deployed to current node --> Set attribute to 1 
    node.set['rabbit']['node_set_cookie'] = 1
    node.save
    # Retrieves Rabbit cluster nodes
    rabbitmq_cluster = search(:node, "roles:rabbitmq") || []
    rabbitmq_cluster.each do |rabbit_node|
      while rabbit_node['rabbit']['node_set_cookie'] != 1 
+       log "===== Waiting for erlang cookie to be deployed on all nodes #{rabbit_node['ipaddress']} : #{rabbit_node['rabbit']['node_set_cookie']}" 
        # Sleep for 10 seconds as cookies are different across nodes
        sleep 10 
      end
