@@ -19,8 +19,10 @@
 # limitations under the License.
 #
 #include_recipe 'partial_search' 
-include_recipe 'erlang'
 
+log "================ 1. default.rb"
+include_recipe 'erlang'
+log "================ 2. default.rb"
 
 ## Install the package
 case node['platform_family']
@@ -53,7 +55,7 @@ when 'debian'
     file '/etc/init.d/rabbitmq-server' do
       action :delete
     end
-
+    log "================ 3. default.rb"
     template "/etc/init/#{node['rabbitmq']['service_name']}.conf" do
       source 'rabbitmq.upstart.conf.erb'
       owner 'root'
@@ -61,7 +63,7 @@ when 'debian'
       mode 0644
       variables(:max_file_descriptors => node['rabbitmq']['max_file_descriptors']).strip
     end
-
+    log "================ 4. default.rb"
     service node['rabbitmq']['service_name'] do
       provider Chef::Provider::Service::Upstart
       action [ :enable, :start ]
@@ -84,7 +86,7 @@ when 'debian'
       action [ :enable, :start ]
     end
   end
-
+log "================ 5. default.rb"
 when 'rhel', 'fedora'
   #This is needed since Erlang Solutions' packages provide "esl-erlang"; this package just requires "esl-erlang" and provides "erlang".
   if node['erlang']['install_method'] == 'esl'
@@ -142,6 +144,8 @@ directory node['rabbitmq']['mnesiadir'] do
   recursive true
 end
 
+log "================ 6. default.rb"
+
 template "#{node['rabbitmq']['config_root']}/rabbitmq-env.conf" do
   source 'rabbitmq-env.conf.erb'
   owner 'root'
@@ -150,7 +154,7 @@ template "#{node['rabbitmq']['config_root']}/rabbitmq-env.conf" do
   notifies :restart, "service[#{node['rabbitmq']['service_name']}]"
 end
 
-
+log "================ 7. default.rb"
 if File.exists?(node['rabbitmq']['erlang_cookie_path'])
   existing_erlang_key =  File.read(node['rabbitmq']['erlang_cookie_path']).strip
 else
@@ -158,6 +162,7 @@ else
 end
 
 if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing_erlang_key)
+   log "================ 8. default.rb"
   # Retrieve rabbitmq hostnames
   # get ip addresses - Barclamp proposal needs to be coded and not hard coded
    service_name = node[:rabbitmq][:config][:environment]
@@ -175,8 +180,8 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
    cluster_nodes << "rabbit@"+rmcont2hostname[0]
    cluster_nodes << "rabbit@"+rmcont3hostname[0]
    node.default['rabbitmq']['cluster_disk_nodes'] = cluster_nodes
-  #End of cluster cluster address config
-  log "====== End retrieve rabbitmq hostnames ==================" 
+   #End of cluster cluster address config
+   log "====== End retrieve rabbitmq hostnames ==================" 
    # Deploy rabbit.config file
    template "#{node['rabbitmq']['config_root']}/rabbitmq.config" do
      source 'rabbitmq.config.erb'
@@ -185,21 +190,21 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
      mode 00644
      notifies :restart, "service[#{node['rabbitmq']['service_name']}]"
    end
-   log "====== End deploy rabbit.configi ================"
-  log "stopping service[#{node['rabbitmq']['service_name']}] to change erlang_cookie" do
-    level :info
-    notifies :stop, "service[#{node['rabbitmq']['service_name']}]", :immediately
-  end
-  log "====== End stopping rabbitmq service ==================="
-  # Deploy erlang cookie
-  template node['rabbitmq']['erlang_cookie_path'] do
-    source 'doterlang.cookie.erb'
-    owner 'rabbitmq'
-    group 'rabbitmq'
-    mode 00400
-    notifies :start, "service[#{node['rabbitmq']['service_name']}]", :immediately
-    notifies :run, "execute[reset-node]", :immediately
-  end
+   log "====== End deploy rabbit.config ================"
+   log "stopping service[#{node['rabbitmq']['service_name']}] to change erlang_cookie" do
+     level :info
+     notifies :stop, "service[#{node['rabbitmq']['service_name']}]", :immediately
+   end
+   log "====== End stopping rabbitmq service ==================="
+   # Deploy erlang cookie
+   template node['rabbitmq']['erlang_cookie_path'] do
+     source 'doterlang.cookie.erb'
+     owner 'rabbitmq'
+     group 'rabbitmq'
+     mode 00400
+     notifies :start, "service[#{node['rabbitmq']['service_name']}]", :immediately
+     notifies :run, "execute[reset-node]", :immediately
+   end
    log "====== End deploying erlang cookie======================================"
    # Erlang cookie has been deployed to current node --> Set attribute to 1 
    node.set['rabbit']['node_set_cookie'] = 1
@@ -208,40 +213,34 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
    log "=========== erlang cookie has been set to 1 on node : #{node['ipaddress']} : #{node['rabbit']['node_set_cookie']}"
    # Retrieves Rabbit cluster nodes
    rabbitmq_cluster = search(:node, "roles:rabbitmq") || []
-   rabbitmq_cluster.each do |rabbit_node|
-     while rabbit_node['rabbit']['node_set_cookie'] != 1 
-       log "===== Waiting for erlang cookie to be deployed on all nodes #{rabbit_node['ipaddress']} : #{rabbit_node['rabbit']['node_set_cookie']}" 
-       # Sleep for 10 seconds as cookies are different across nodes
-       sleep 10 
+   log "================ 9. default.rb"
+   if node['rabbit']['node_set_cookie'] == 1
+     rabbitmq_cluster.each do |rabbit_node|
+        log "================ 10. default.rb"
+        i = 0
+        while rabbit_node['rabbit']['node_set_cookie'] != 1 
+          i+=1
+          log "===== Waiting for erlang cookie to be deployed on all nodes #{rabbit_node['ipaddress']} : #{rabbit_node['rabbit']['node_set_cookie']}" 
+          break if i==3
+          # Sleep for 10 seconds as cookies are different across nodes
+          sleep 10 
+        end
      end
    end
    # We can proceed to a reset as cookies are deployed accross all nodes 
-  # Need to reset for clustering #
-  execute "reset-node" do
-    command "rabbitmqctl stop_app && rabbitmqctl reset && rabbitmqctl stop && setsid /etc/init.d/rabbitmq-server start"
-    action :nothing
-  end
+   # Need to reset for clustering #
+   log "================ 11. default.rb"
+   execute "reset-node" do
+     command "rabbitmqctl stop_app && rabbitmqctl reset && rabbitmqctl stop && setsid /etc/init.d/rabbitmq-server start"
+     action :nothing
+   end
 end
+
+log "================ 12. default.rb"
 
 service node['rabbitmq']['service_name'] do
       action [ :enable, :start ]
 end
 
-#rmcont1hostname = rmcont1.split('.')
-#rmcont2hostname = rmcont2.split('.')
-#rmcont3hostname = rmcont3.split('.')
-
-
-#if node[:hostname] == rmcont2hostname[0]
-  #execute "join-cluster1" do
-     #command "rabbitmqctl -q stop_app && rabbitmqctl -q join_cluster rabbit@"+rmcont1hostname[0]+" && rabbitmqctl -q start_app"
-  #end
-#end
-
-#if node[:hostname] == rmcont3hostname[0]
-  #execute "join-cluster2" do
-     #command "rabbitmqctl -q stop_app && rabbitmqctl -q join_cluster rabbit@"+rmcont1hostname[0]+" && rabbitmqctl -q start_app"
-  #end
-#end
-
+log "================ 13. default.rb"
 
