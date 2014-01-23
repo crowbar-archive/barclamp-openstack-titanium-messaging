@@ -199,6 +199,8 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
   end
    
    node.set['rabbit']['node_set_cookie'] = 1
+   nove.save
+   log "=== rabbit current node set cookie #{node['rabbit']['node_set_cookie']}"
    # Retrieves Rabbit cluster nodes
    rabbitmq_cluster = search(:node, "roles:rabbitmq") || []
    rabbitmq_cluster.each do |rabbit_node|
