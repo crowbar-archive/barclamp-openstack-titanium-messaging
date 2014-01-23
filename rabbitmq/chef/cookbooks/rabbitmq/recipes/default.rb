@@ -203,6 +203,7 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
    # Erlang cookie has been deployed to current node --> Set attribute to 1 
    node.set['rabbit']['node_set_cookie'] = 1
    node.save
+   log "=========== erlang cookie has been set to 1 on node : #{node['ipaddress']} : #{node['rabbit']['node_set_cookie']}"
    # Retrieves Rabbit cluster nodes
    rabbitmq_cluster = search(:node, "roles:rabbitmq") || []
    rabbitmq_cluster.each do |rabbit_node|
