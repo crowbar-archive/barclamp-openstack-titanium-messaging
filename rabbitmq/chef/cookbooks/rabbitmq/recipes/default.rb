@@ -150,13 +150,6 @@ template "#{node['rabbitmq']['config_root']}/rabbitmq-env.conf" do
   notifies :restart, "service[#{node['rabbitmq']['service_name']}]"
 end
 
-template "#{node['rabbitmq']['config_root']}/rabbitmq.config" do
-  source 'rabbitmq.config.erb'
-  owner 'root'
-  group 'root'
-  mode 00644
-  notifies :restart, "service[#{node['rabbitmq']['service_name']}]"
-end
 
 if File.exists?(node['rabbitmq']['erlang_cookie_path'])
   existing_erlang_key =  File.read(node['rabbitmq']['erlang_cookie_path']).strip
@@ -183,6 +176,14 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
    node.default['rabbitmq']['cluster_disk_nodes'] = cluster_nodes
   #End of cluster cluster address config
 
+   template "#{node['rabbitmq']['config_root']}/rabbitmq.config" do
+     source 'rabbitmq.config.erb'
+     owner 'root'
+     group 'root'
+     mode 00644
+     notifies :restart, "service[#{node['rabbitmq']['service_name']}]"
+   end
+
   log "stopping service[#{node['rabbitmq']['service_name']}] to change erlang_cookie" do
     level :info
     notifies :stop, "service[#{node['rabbitmq']['service_name']}]", :immediately
@@ -196,7 +197,19 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
     notifies :start, "service[#{node['rabbitmq']['service_name']}]", :immediately
     notifies :run, "execute[reset-node]", :immediately
   end
-
+   
+   node.set['rabbit']['node_set_cookie'] = 1
+   # Retrieves Rabbit cluster nodes
+   rabbitmq_cluster = search(:node, "roles:rabbitmq") || []
+   rabbitmq_cluster.each do |rabbit_node|
+     log "=== rabbit node set cookie : #{rabbit_node['rabbit']['node_set_cookie']} "
+     while rabbit_node['rabbit']['node_set_cookie'] != 1 
+       sleep 10 
+       log "========== Sleep for 10 seconds as cookies are different across nodes #{rabbit_node['rabbit']['node_set_cookie']}"
+     end
+    log "=== rabbit node set cookie after 10 seconds : #{rabbit_node['rabbit']['node_set_cookie']} "
+   end
+   log "======== We can reset nodes as cookies are the same"
   # Need to reset for clustering #
   execute "reset-node" do
     command "rabbitmqctl stop_app && rabbitmqctl reset && rabbitmqctl stop && setsid /etc/init.d/rabbitmq-server start"
