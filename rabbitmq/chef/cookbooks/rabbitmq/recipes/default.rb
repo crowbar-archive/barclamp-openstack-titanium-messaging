@@ -147,6 +147,34 @@ template "#{node['rabbitmq']['config_root']}/rabbitmq-env.conf" do
   notifies :restart, "service[#{node['rabbitmq']['service_name']}]"
 end
 
+# Retrieve rabbitmq hostnames
+# get ip addresses - Barclamp proposal needs to be coded and not hard coded
+service_name = node[:rabbitmq][:config][:environment]
+proposal_name = service_name.split('-')
+bcproposal = "bc-rabbitmq-"+proposal_name[2]
+getrmip_db = data_bag_item('crowbar', bcproposal)
+rmcont1 = getrmip_db["deployment"]["rabbitmq"]["elements"]["rabbitmq"][0]
+rmcont2 = getrmip_db["deployment"]["rabbitmq"]["elements"]["rabbitmq"][1]
+rmcont3 = getrmip_db["deployment"]["rabbitmq"]["elements"]["rabbitmq"][2]
+cluster_nodes = Array.new
+rmcont1hostname = rmcont1.split('.')
+rmcont2hostname = rmcont2.split('.')
+rmcont3hostname = rmcont3.split('.')
+cluster_nodes << "rabbit@"+rmcont1hostname[0]
+cluster_nodes << "rabbit@"+rmcont2hostname[0]
+cluster_nodes << "rabbit@"+rmcont3hostname[0]
+node.default['rabbitmq']['cluster_disk_nodes'] = cluster_nodes
+#End of cluster cluster address config
+
+# Deploy rabbit.config file
+template "#{node['rabbitmq']['config_root']}/rabbitmq.config" do
+  source 'rabbitmq.config.erb'
+  owner 'root'
+  group 'root'
+  mode 00644
+  notifies :restart, "service[#{node['rabbitmq']['service_name']}]"
+end
+
 if File.exists?(node['rabbitmq']['erlang_cookie_path'])
   existing_erlang_key =  File.read(node['rabbitmq']['erlang_cookie_path']).strip
 else
@@ -154,32 +182,7 @@ else
 end
 
 if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing_erlang_key)
-  # Retrieve rabbitmq hostnames
-  # get ip addresses - Barclamp proposal needs to be coded and not hard coded
-   service_name = node[:rabbitmq][:config][:environment]
-   proposal_name = service_name.split('-')
-   bcproposal = "bc-rabbitmq-"+proposal_name[2]
-   getrmip_db = data_bag_item('crowbar', bcproposal)
-   rmcont1 = getrmip_db["deployment"]["rabbitmq"]["elements"]["rabbitmq"][0]
-   rmcont2 = getrmip_db["deployment"]["rabbitmq"]["elements"]["rabbitmq"][1]
-   rmcont3 = getrmip_db["deployment"]["rabbitmq"]["elements"]["rabbitmq"][2]
-   cluster_nodes = Array.new
-   rmcont1hostname = rmcont1.split('.')
-   rmcont2hostname = rmcont2.split('.')
-   rmcont3hostname = rmcont3.split('.')
-   cluster_nodes << "rabbit@"+rmcont1hostname[0]
-   cluster_nodes << "rabbit@"+rmcont2hostname[0]
-   cluster_nodes << "rabbit@"+rmcont3hostname[0]
-   node.default['rabbitmq']['cluster_disk_nodes'] = cluster_nodes
-   #End of cluster cluster address config
-   # Deploy rabbit.config file
-   template "#{node['rabbitmq']['config_root']}/rabbitmq.config" do
-     source 'rabbitmq.config.erb'
-     owner 'root'
-     group 'root'
-     mode 00644
-     notifies :restart, "service[#{node['rabbitmq']['service_name']}]"
-   end
+
    log "stopping service[#{node['rabbitmq']['service_name']}] to change erlang_cookie" do
      level :info
      notifies :stop, "service[#{node['rabbitmq']['service_name']}]", :immediately
@@ -191,7 +194,6 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
      group 'rabbitmq'
      mode 00400
      notifies :start, "service[#{node['rabbitmq']['service_name']}]", :immediately
-     notifies :run, "execute[reset-node]", :immediately
    end
    # Erlang cookie has been deployed to current node --> Set attribute to 1 
    node.set['rabbit']['node_set_cookie'] = 1
@@ -212,9 +214,10 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
    end
    # We can proceed to a reset as cookies are deployed accross all nodes 
    # Need to reset for clustering #
+   log "===== Execute : reset nodes action ======"
    execute "reset-node" do
      command "rabbitmqctl stop_app && rabbitmqctl reset && rabbitmqctl stop && setsid /etc/init.d/rabbitmq-server start"
-     action :nothing
+     action :run
    end
 end
 
