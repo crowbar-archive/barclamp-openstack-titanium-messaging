@@ -29,7 +29,8 @@ default['rabbitmq']['local_erl_networking'] = false
 
 # bind rabbit and erlang networking to an address
 default['rabbitmq']['erl_networking_bind_address'] = nil
-
+# attribute indicating whether the node has deployed erlang cookie
+default['rabbit']['node_set_cookie'] = 0
 #clustering
 default['rabbitmq']['cluster_role'] = "rabbitmq-config-proposal" 
 default['rabbitmq']['cluster'] = true
