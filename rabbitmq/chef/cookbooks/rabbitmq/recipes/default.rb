@@ -207,7 +207,7 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
         while rabbit_node['rabbit']['node_set_cookie'] != 1 
           i+=1
           log "===== Waiting for erlang cookie to be deployed on all nodes #{rabbit_node['ipaddress']} : #{rabbit_node['rabbit']['node_set_cookie']}" 
-          break if i==6
+          break if i==3
           # Sleep for 10 seconds as cookies are different across nodes
           sleep 10 
         end
@@ -243,7 +243,7 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
       sleep 15
    end
    i+=1
-   break if i==10
+   break if i==5
  end
 end
 
