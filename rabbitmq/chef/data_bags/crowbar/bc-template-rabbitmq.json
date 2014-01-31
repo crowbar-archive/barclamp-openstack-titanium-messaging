@@ -1,6 +1,6 @@
 {
   "id": "bc-template-rabbitmq",
-  "description": "provides a RabbitMQ Multinode installation",
+  "description": "OpenStack HA - RabbitMQ multinode cluster",
   "attributes": {
      "rabbitmq": {
          "port": 5672,
