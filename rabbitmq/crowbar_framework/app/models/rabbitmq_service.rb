@@ -27,13 +27,13 @@ class RabbitmqService < ServiceObject
     base = super
     @logger.debug("rabbitmq create_proposal: leaving base part")
 
-    nodes = NodeObject.all
-    nodes.delete_if { |n| not n.admin? }
-    unless nodes.empty?
-      base["deployment"]["rabbitmq"]["elements"] = {
-        "rabbitmq" => [ nodes.first.name ]
-      }
-    end
+#    nodes = NodeObject.all
+#    nodes.delete_if { |n| not n.admin? }
+#    unless nodes.empty?
+#      base["deployment"]["rabbitmq"]["elements"] = {
+#        "rabbitmq" => [ nodes.first.name ]
+#      }
+#    end
 
     @logger.debug("rabbitmq create_proposal: exiting")
     base

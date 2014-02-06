@@ -1,5 +1,4 @@
-# Copyright 2011, Dell
-# Copyright 2012, Dell 
+# Copyright 2014, Dell 
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +15,8 @@
 
 barclamp:
   name: rabbitmq 
-  display: RabbitMQ Multinode
+  display: RabbitMQ
+  description: 'OpenStack HA - RabbitMQ multinode cluster'  
   version: 0
   member:
     - haopenstack
