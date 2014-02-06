@@ -21,6 +21,9 @@
 #include_recipe 'partial_search' 
 include_recipe 'erlang'
 
+node.set["rabbit"]["is_reset"] = false
+node.save
+
 ## Install the package
 case node['platform_family']
 when 'debian'
@@ -121,7 +124,6 @@ when 'smartos'
     action [:enable, :start]
   end
 end
-
 if node['rabbitmq']['logdir']
   directory node['rabbitmq']['logdir'] do
     owner 'rabbitmq'
@@ -138,7 +140,6 @@ directory node['rabbitmq']['mnesiadir'] do
   recursive true
 end
 
-
 template "#{node['rabbitmq']['config_root']}/rabbitmq-env.conf" do
   source 'rabbitmq-env.conf.erb'
   owner 'root'
@@ -146,7 +147,6 @@ template "#{node['rabbitmq']['config_root']}/rabbitmq-env.conf" do
   mode 00644
   notifies :restart, "service[#{node['rabbitmq']['service_name']}]"
 end
-
 # Retrieve rabbitmq hostnames
 # get ip addresses - Barclamp proposal needs to be coded and not hard coded
 service_name = node[:rabbitmq][:config][:environment]
@@ -165,6 +165,7 @@ cluster_nodes << "rabbit@"+rmcont2hostname[0]
 cluster_nodes << "rabbit@"+rmcont3hostname[0]
 node.default['rabbitmq']['cluster_disk_nodes'] = cluster_nodes
 #End of cluster cluster address config
+
 
 # Deploy rabbit.config file
 template "#{node['rabbitmq']['config_root']}/rabbitmq.config" do
@@ -206,7 +207,7 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
         while rabbit_node['rabbit']['node_set_cookie'] != 1 
           i+=1
           log "===== Waiting for erlang cookie to be deployed on all nodes #{rabbit_node['ipaddress']} : #{rabbit_node['rabbit']['node_set_cookie']}" 
-          break if i==6
+          break if i==3
           # Sleep for 10 seconds as cookies are different across nodes
           sleep 10 
         end
@@ -214,11 +215,36 @@ if node['rabbitmq']['cluster'] && (node['rabbitmq']['erlang_cookie'] != existing
    end
    # We can proceed to a reset as cookies are deployed accross all nodes 
    # Need to reset for clustering #
-   log "===== Execute : reset nodes action ======"
-   execute "reset-node" do
-     command "rabbitmqctl stop_app && rabbitmqctl reset && rabbitmqctl stop && setsid /etc/init.d/rabbitmq-server start"
-     action :run
+   i = 0
+   while node["rabbit"]["is_reset"] == false
+   ip_to_reset = "0"
+   # Retrieves Rabbit cluster nodes
+   rabbitmq_cluster = search(:node, "roles:rabbitmq") || []
+   rabbitmq_cluster.each do |rabbit_node|
+     current_ip = rabbit_node['ipaddress']
+     # Find the highest ip address to reset -> the node that has the highest ip address and has not been reset yet
+     if rabbit_node["rabbit"]["is_reset"] == false && ip_to_reset.split(".").last.to_i < current_ip.split(".").last.to_i
+       ip_to_reset = current_ip
+     end
    end
+   #Node to reset is ip_to_reset
+   if node["ipaddress"] == ip_to_reset
+     # If the current node has the ip address to be reset -> execute reset
+     log "====== Node is going to reset : #{node['ipaddress']}"
+     execute "reset-node" do
+       command "rabbitmqctl stop_app && rabbitmqctl reset && rabbitmqctl stop && setsid /etc/init.d/rabbitmq-server start"
+       action :run
+     end
+     # Reset is done, change is_reset flag to true  
+     node.set["rabbit"]["is_reset"] = true
+     node.save
+   else
+      # Sleep for 15 seconds as current node can't reset yet...
+      sleep 15
+   end
+   i+=1
+   break if i==5
+ end
 end
 
 
