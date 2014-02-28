@@ -13,5 +13,5 @@ About this barclamp
 
 Information for this barclamp is maintained on the Crowbar Framework Wiki: https://github.com/dellcloudedge/crowbar/wiki
 
-This barclamp implements a RabbitMQ Cluster and is based on 3 controller nodes
-Todo - Fix monitoring
+This barclamp implements a RabbitMQ Cluster and should be applied to 3 controller nodes
+
